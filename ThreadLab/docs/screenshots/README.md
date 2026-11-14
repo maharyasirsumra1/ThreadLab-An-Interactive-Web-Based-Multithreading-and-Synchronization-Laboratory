@@ -1,0 +1,1 @@
+Place screenshots captured from the running project here (desktop dashboard, worker run, unsafe/protected race comparison, mutex lock, buffer, Linux terminal examples, results, and mobile view). Screenshots are not pre-generated or fabricated; capture them in a real browser as described in ../TEST_REPORT.md.
