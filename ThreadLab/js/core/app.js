@@ -1,5 +1,7 @@
 import {initRanges,initSegments,getRuns,text} from './ui.js';
+import {initTheme} from './theme.js';
 import {initPremiumMotion} from './animations.js';
+initTheme();
 initRanges();initSegments();
 const menu=document.getElementById('mobileMenu'),sidebar=document.getElementById('sidebar'),backdrop=document.getElementById('sidebarBackdrop');
 function closeNav(){sidebar?.classList.remove('is-open');backdrop?.classList.remove('is-visible');menu?.setAttribute('aria-expanded','false')}

@@ -46,11 +46,13 @@ function createNetwork(THREE, group, mobile) {
 
   const linkGeometry = new THREE.BufferGeometry();
   linkGeometry.setAttribute('position', new THREE.Float32BufferAttribute(links, 3));
-  group.add(new THREE.LineSegments(linkGeometry, new THREE.LineBasicMaterial({
+  const linkMaterial = new THREE.LineBasicMaterial({
     color: '#8f83f4',
     transparent: true,
     opacity: mobile ? .18 : .23
-  })));
+  });
+  group.add(new THREE.LineSegments(linkGeometry, linkMaterial));
+  return {nodeMaterial, linkMaterial};
 }
 
 function addFloatingShape(THREE, group, geometry, material, position, scale) {
@@ -78,7 +80,8 @@ function renderScene(THREE, canvas, host) {
   const camera = new THREE.PerspectiveCamera(36, 1, .1, 60);
   camera.position.set(0, 0, 9.2);
 
-  scene.add(new THREE.AmbientLight('#a9b5ff', 1.15));
+  const ambientLight = new THREE.AmbientLight('#a9b5ff', 1.15);
+  scene.add(ambientLight);
   const keyLight = new THREE.PointLight('#8e7aff', 34, 18);
   keyLight.position.set(-2.2, 2.6, 4);
   scene.add(keyLight);
@@ -91,7 +94,7 @@ function renderScene(THREE, canvas, host) {
   const network = new THREE.Group();
   root.add(network);
 
-  createNetwork(THREE, network, mobile);
+  const networkMaterials = createNetwork(THREE, network, mobile);
   const ringMaterial = new THREE.MeshStandardMaterial({
     color: '#9784ff',
     emissive: '#41337e',
@@ -151,13 +154,14 @@ function renderScene(THREE, canvas, host) {
   for (let i = 0; i < starPositions.length; i++) starPositions[i] = (Math.random() - .5) * 11;
   const starGeometry = new THREE.BufferGeometry();
   starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-  scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({
+  const starMaterial = new THREE.PointsMaterial({
     color: '#bcb8ff',
     size: mobile ? .018 : .022,
     transparent: true,
     opacity: .58,
     sizeAttenuation: true
-  })));
+  });
+  scene.add(new THREE.Points(starGeometry, starMaterial));
 
   let width = 0;
   let height = 0;
@@ -170,13 +174,58 @@ function renderScene(THREE, canvas, host) {
   let targetScroll = 0;
   let visible = !document.hidden;
   const clock = new THREE.Clock();
+  const palettes = {
+    dark: {
+      ambient: '#a9b5ff', key: '#8e7aff', fill: '#46dce8', clear: '#070a18', fog: '#10152c',
+      node: '#91dff4', nodeGlow: '#3e74a9', link: '#8f83f4', ring: '#9784ff',
+      ringGlow: '#41337e', cyan: '#66e4eb', cyanGlow: '#1c6570', core: '#7563d5',
+      coreGlow: '#4136a0', wire: '#c4b8ff', shape: '#b7adff', shapeGlow: '#5140a0',
+      stars: '#bcb8ff'
+    },
+    light: {
+      ambient: '#ffffff', key: '#967ce3', fill: '#39aebb', clear: '#eef2fb', fog: '#e9eef8',
+      node: '#347e92', nodeGlow: '#b5e9f2', link: '#8872d2', ring: '#7660c1',
+      ringGlow: '#d7cff7', cyan: '#168c99', cyanGlow: '#b4eaf0', core: '#8f7ade',
+      coreGlow: '#b8aafa', wire: '#4c408c', shape: '#634fae', shapeGlow: '#c4b9ee',
+      stars: '#7763c4'
+    }
+  };
+
+  function applyTheme(theme) {
+    const palette = palettes[theme] || palettes.dark;
+    ambientLight.color.set(palette.ambient);
+    keyLight.color.set(palette.key);
+    fillLight.color.set(palette.fill);
+    scene.fog = new THREE.FogExp2(palette.fog, .026);
+    renderer.setClearColor(palette.clear, theme === 'light' ? .04 : .025);
+    networkMaterials.nodeMaterial.color.set(palette.node);
+    networkMaterials.nodeMaterial.emissive.set(palette.nodeGlow);
+    networkMaterials.linkMaterial.color.set(palette.link);
+    ringMaterial.color.set(palette.ring);
+    ringMaterial.emissive.set(palette.ringGlow);
+    cyanRingMaterial.color.set(palette.cyan);
+    cyanRingMaterial.emissive.set(palette.cyanGlow);
+    coreMesh.material.color.set(palette.core);
+    coreMesh.material.emissive.set(palette.coreGlow);
+    coreWire.material.color.set(palette.wire);
+    shapeMaterial.color.set(palette.shape);
+    shapeMaterial.emissive.set(palette.shapeGlow);
+    shapeB.material.color.set(palette.shape);
+    shapeB.material.emissive.set(palette.shapeGlow);
+    shapeC.material.color.set(palette.cyan);
+    starMaterial.color.set(palette.stars);
+    ringMaterial.opacity = theme === 'light' ? .58 : .76;
+    starMaterial.opacity = theme === 'light' ? .4 : .58;
+  }
 
   function resize() {
     const bounds = host.getBoundingClientRect();
     width = Math.max(1, bounds.width);
     height = Math.max(1, bounds.height);
+    const currentMobile = matchMedia('(max-width: 700px)').matches;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, currentMobile ? 1.5 : 2));
     camera.aspect = width / height;
-    camera.position.z = mobile ? 10 : 9.2;
+    camera.position.z = currentMobile ? 10 : 9.2;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     if (visible) draw();
@@ -186,6 +235,11 @@ function renderScene(THREE, canvas, host) {
     const bounds = host.getBoundingClientRect();
     targetX = ((event.clientX - bounds.left) / Math.max(1, bounds.width) - .5) * 2;
     targetY = ((event.clientY - bounds.top) / Math.max(1, bounds.height) - .5) * 2;
+  }
+
+  function resetPointer() {
+    targetX = 0;
+    targetY = 0;
   }
 
   function updateScroll() {
@@ -238,12 +292,38 @@ function renderScene(THREE, canvas, host) {
     }
   }
 
+  function onThemeChange(event) {
+    applyTheme(event.detail?.theme);
+    if (visible) draw();
+  }
+
+  function onPageHide(event) {
+    if (event.persisted) return;
+    if (animationFrame) cancelAnimationFrame(animationFrame);
+    resizeObserver.disconnect();
+    host.removeEventListener('pointermove', updatePointer);
+    host.removeEventListener('pointerleave', resetPointer);
+    window.removeEventListener('scroll', updateScroll);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    document.removeEventListener('threadlab:themechange', onThemeChange);
+    scene.traverse(object => {
+      object.geometry?.dispose();
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) material?.dispose();
+    });
+    renderer.dispose();
+    renderer.forceContextLoss();
+  }
+
+  const resizeObserver = new ResizeObserver(resize);
   host.addEventListener('pointermove', updatePointer, {passive: true});
-  host.addEventListener('pointerleave', () => { targetX = 0; targetY = 0; }, {passive: true});
+  host.addEventListener('pointerleave', resetPointer, {passive: true});
   window.addEventListener('scroll', updateScroll, {passive: true});
   document.addEventListener('visibilitychange', onVisibilityChange);
-  const resizeObserver = new ResizeObserver(resize);
+  document.addEventListener('threadlab:themechange', onThemeChange);
+  window.addEventListener('pagehide', onPageHide, {once: true});
   resizeObserver.observe(host);
+  applyTheme(document.documentElement.dataset.theme);
   resize();
   updateScroll();
   if (reducedMotion) draw();

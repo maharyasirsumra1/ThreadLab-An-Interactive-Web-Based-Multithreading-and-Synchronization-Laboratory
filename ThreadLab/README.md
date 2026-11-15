@@ -55,6 +55,7 @@ Right-click `index.html` and choose **Open with Live Server**. Navigate using th
 - Completed experiments are saved in this browser's `localStorage` (maximum 80 runs).
 - Review experiment history under **Run History**, and export saved runs in JSON or CSV.
 - Explore device-specific browser API hints in **Linux Observation**; example terminal output is explicitly labeled as such.
+- Switch between dark and light themes with the header toggle; the choice is saved locally, and first-time visits follow the system color preference. The visual hero adapts its lighting and palette to the active theme.
 - Animations support reduced-motion preferences, and the layout adapts to phones, tablets, and desktops.
 
 ## Important frontend-only scope clarification
